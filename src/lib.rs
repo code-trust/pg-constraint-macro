@@ -49,40 +49,41 @@ fn validate_constraint_exists(database_url: &str, name: &str) -> Result<(), Stri
         // Names that can appear in db_err.constraint():
         // 1. pg_constraint.conname - all constraints
         // 2. Unique index names (CREATE UNIQUE INDEX name ...)
-        let row: Option<sqlx::postgres::PgRow> = sqlx::query(
+        let exists: bool = sqlx::query_scalar(
             "
-            SELECT 1 AS ok FROM pg_constraint WHERE conname = $1
-            UNION ALL
-            SELECT 1 FROM pg_indexes i
-            JOIN pg_class c ON c.relname = i.indexname
-              AND c.relnamespace = (SELECT oid FROM pg_namespace WHERE nspname = i.schemaname)
-            JOIN pg_index ind ON ind.indexrelid = c.oid
-            WHERE ind.indisunique AND i.indexname = $1
-            LIMIT 1
+            SELECT exists(
+                SELECT 1 FROM pg_constraint WHERE conname = $1
+                UNION ALL
+                SELECT 1
+                FROM pg_indexes i
+                JOIN pg_class c ON c.relname = i.indexname
+                    AND c.relnamespace = (SELECT oid FROM pg_namespace WHERE nspname = i.schemaname)
+                JOIN pg_index ind ON ind.indexrelid = c.oid
+                WHERE ind.indisunique AND i.indexname = $1
+            )
             ",
         )
         .bind(name)
-        .fetch_optional(&pool)
+        .fetch_one(&pool)
         .await
         .map_err(|e| e.to_string())?;
 
-        match row {
-            Some(_) => Ok(()),
-            None => {
-                let suggestions = get_similar_constraints(&pool, name).await?;
-
-                let hint = if suggestions.is_empty() {
-                    format!("no constraint or unique index named \"{name}\"")
-                } else {
-                    format!(
-                        "no constraint or unique index named \"{name}\". Did you mean: {}?",
-                        suggestions.join(", ")
-                    )
-                };
-
-                Err(hint)
-            }
+        if exists {
+            return Ok(());
         }
+
+        let suggestions = get_similar_constraints(&pool, name).await?;
+
+        let hint = if suggestions.is_empty() {
+            format!("no constraint or unique index named \"{name}\"")
+        } else {
+            format!(
+                "no constraint or unique index named \"{name}\". Did you mean: {}?",
+                suggestions.join(", ")
+            )
+        };
+
+        Err(hint)
     })
 }
 
