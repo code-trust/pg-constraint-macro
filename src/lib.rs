@@ -96,12 +96,15 @@ async fn get_constraint_names_from_db(pool: &sqlx::PgPool) -> Result<HashSet<Str
     sqlx::query_scalar(
         "
         SELECT conname AS name FROM pg_constraint
+        JOIN pg_namespace ON pg_namespace.oid = connamespace
+        WHERE nspname NOT IN ('pg_catalog', 'information_schema')
         UNION ALL
         SELECT indexname AS name FROM pg_indexes i
-        JOIN pg_class c ON c.relname = i.indexname
-          AND c.relnamespace = (SELECT oid FROM pg_namespace WHERE nspname = i.schemaname)
+        JOIN pg_namespace n ON n.nspname = i.schemaname
+        JOIN pg_class c ON c.relname = i.indexname AND c.relnamespace = n.oid
         JOIN pg_index ind ON ind.indexrelid = c.oid
-        WHERE ind.indisunique
+        WHERE schemaname NOT IN ('pg_catalog', 'information_schema')
+        AND ind.indisunique
         ",
     )
     .fetch_all(pool)
