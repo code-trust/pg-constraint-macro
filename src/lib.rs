@@ -1,6 +1,4 @@
-#[cfg(feature = "validate")]
 use std::collections::HashSet;
-#[cfg(feature = "validate")]
 use std::sync::OnceLock;
 
 use proc_macro::TokenStream;
@@ -10,37 +8,29 @@ use syn::{
     parse_macro_input,
 };
 
-#[cfg(feature = "validate")]
 static CONSTRAINT_NAMES: OnceLock<Result<HashSet<String>, String>> = OnceLock::new();
 
 #[proc_macro]
 pub fn pg_constraint(input: TokenStream) -> TokenStream {
     let lit = parse_macro_input!(input as LitStr);
 
-    #[cfg(feature = "validate")]
-    {
-        let validation = match std::env::var("DATABASE_URL") {
-            Ok(url) => validate_constraint_exists(&url, &lit.value()),
-            Err(_) => Ok(()), // no DB: skip validation, same as sqlx offline
-        };
+    let validation = match std::env::var("DATABASE_URL") {
+        Ok(url) => validate_constraint_exists(&url, &lit.value()),
+        Err(_) => Ok(()), // no DB: skip validation, same as sqlx offline
+    };
 
-        match validation {
-            Ok(()) => quote! { #lit }.into(),
-            Err(e) => {
-                let msg = format!("pg_constraint!: {e}");
-                quote! {
-                    compile_error!(#msg)
-                }
-                .into()
+    match validation {
+        Ok(()) => quote! { #lit }.into(),
+        Err(e) => {
+            let msg = format!("pg_constraint!: {e}");
+            quote! {
+                compile_error!(#msg)
             }
+            .into()
         }
     }
-
-    #[cfg(not(feature = "validate"))]
-    quote! { #lit }.into()
 }
 
-#[cfg(feature = "validate")]
 fn validate_constraint_exists(database_url: &str, name: &str) -> Result<(), String> {
     let constraint_names = get_constraint_names(database_url)?;
 
@@ -62,7 +52,6 @@ fn validate_constraint_exists(database_url: &str, name: &str) -> Result<(), Stri
     Err(hint)
 }
 
-#[cfg(feature = "validate")]
 fn get_constraint_names(database_url: &str) -> Result<&'static HashSet<String>, String> {
     CONSTRAINT_NAMES
         .get_or_init(|| load_constraint_names(database_url))
@@ -70,7 +59,6 @@ fn get_constraint_names(database_url: &str) -> Result<&'static HashSet<String>, 
         .map_err(|error| error.clone())
 }
 
-#[cfg(feature = "validate")]
 fn load_constraint_names(database_url: &str) -> Result<HashSet<String>, String> {
     let rt = tokio::runtime::Builder::new_current_thread()
         .enable_all()
@@ -88,7 +76,6 @@ fn load_constraint_names(database_url: &str) -> Result<HashSet<String>, String> 
     })
 }
 
-#[cfg(feature = "validate")]
 async fn get_constraint_names_from_db(pool: &sqlx::PgPool) -> Result<HashSet<String>, String> {
     // Names that can appear in db_err.constraint():
     // 1. pg_constraint.conname - all constraints
@@ -113,7 +100,6 @@ async fn get_constraint_names_from_db(pool: &sqlx::PgPool) -> Result<HashSet<Str
     .map(|names| names.into_iter().collect())
 }
 
-#[cfg(feature = "validate")]
 fn get_similar_constraints(
     constraint_names: &HashSet<String>,
     constraint_name: &str,
