@@ -3,6 +3,7 @@ use std::sync::OnceLock;
 
 use proc_macro::TokenStream;
 use quote::quote;
+use sqlx::Connection as _;
 use syn::{
     LitStr,
     parse_macro_input,
@@ -13,14 +14,10 @@ static CONSTRAINT_NAMES: OnceLock<Result<HashSet<String>, String>> = OnceLock::n
 #[proc_macro]
 pub fn pg_constraint(input: TokenStream) -> TokenStream {
     let lit = parse_macro_input!(input as LitStr);
+    let name = lit.value();
 
-    let validation = match std::env::var("DATABASE_URL") {
-        Ok(url) => validate_constraint_exists(&url, &lit.value()),
-        Err(_) => Ok(()), // no DB: skip validation, same as sqlx offline
-    };
-
-    match validation {
-        Ok(()) => quote! { #lit }.into(),
+    match validate_or_skip(&name) {
+        Ok(()) => quote!(#lit).into(),
         Err(e) => {
             let msg = format!("pg_constraint!: {e}");
             quote! {
@@ -31,9 +28,20 @@ pub fn pg_constraint(input: TokenStream) -> TokenStream {
     }
 }
 
-fn validate_constraint_exists(database_url: &str, name: &str) -> Result<(), String> {
-    let constraint_names = get_constraint_names(database_url)?;
+fn validate_or_skip(name: &str) -> Result<(), String> {
+    if let Some(names) = loaded_constraint_names()? {
+        return validate_constraint_name(names, name);
+    }
 
+    let Ok(url) = std::env::var("DATABASE_URL") else {
+        return Ok(()); // no DB: skip validation
+    };
+
+    let names = get_constraint_names(&url)?;
+    validate_constraint_name(names, name)
+}
+
+fn validate_constraint_name(constraint_names: &HashSet<String>, name: &str) -> Result<(), String> {
     if constraint_names.contains(name) {
         return Ok(());
     }
@@ -52,6 +60,14 @@ fn validate_constraint_exists(database_url: &str, name: &str) -> Result<(), Stri
     Err(hint)
 }
 
+fn loaded_constraint_names() -> Result<Option<&'static HashSet<String>>, String> {
+    match CONSTRAINT_NAMES.get() {
+        None => Ok(None),
+        Some(Ok(names)) => Ok(Some(names)),
+        Some(Err(e)) => Err(e.clone()),
+    }
+}
+
 fn get_constraint_names(database_url: &str) -> Result<&'static HashSet<String>, String> {
     CONSTRAINT_NAMES
         .get_or_init(|| load_constraint_names(database_url))
@@ -60,23 +76,22 @@ fn get_constraint_names(database_url: &str) -> Result<&'static HashSet<String>, 
 }
 
 fn load_constraint_names(database_url: &str) -> Result<HashSet<String>, String> {
-    let rt = tokio::runtime::Builder::new_current_thread()
+    tokio::runtime::Builder::new_current_thread()
         .enable_all()
         .build()
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| e.to_string())?
+        .block_on(async {
+            let mut conn = sqlx::PgConnection::connect(database_url)
+                .await
+                .map_err(|e| e.to_string())?;
 
-    rt.block_on(async {
-        let pool = sqlx::postgres::PgPoolOptions::new()
-            .max_connections(1)
-            .connect(database_url)
-            .await
-            .map_err(|e| e.to_string())?;
-
-        get_constraint_names_from_db(&pool).await
-    })
+            get_constraint_names_from_db(&mut conn).await
+        })
 }
 
-async fn get_constraint_names_from_db(pool: &sqlx::PgPool) -> Result<HashSet<String>, String> {
+async fn get_constraint_names_from_db(
+    conn: &mut sqlx::PgConnection,
+) -> Result<HashSet<String>, String> {
     // Names that can appear in db_err.constraint():
     // 1. pg_constraint.conname - all constraints
     // 2. Unique index names (CREATE UNIQUE INDEX name ...)
@@ -94,7 +109,7 @@ async fn get_constraint_names_from_db(pool: &sqlx::PgPool) -> Result<HashSet<Str
         AND ind.indisunique
         ",
     )
-    .fetch_all(pool)
+    .fetch_all(conn)
     .await
     .map_err(|e| e.to_string())
     .map(|names| names.into_iter().collect())
