@@ -95,9 +95,9 @@ async fn get_constraint_names_from_db(
     // Names that can appear in db_err.constraint():
     // 1. pg_constraint.conname - all constraints
     // 2. Unique index names (CREATE UNIQUE INDEX name ...)
-    sqlx::query_scalar(
-        "
-        SELECT conname AS name FROM pg_constraint
+    sqlx::query_scalar!(
+        r#"
+        SELECT conname AS "name!" FROM pg_constraint
         JOIN pg_namespace ON pg_namespace.oid = connamespace
         WHERE nspname NOT IN ('pg_catalog', 'information_schema')
         UNION ALL
@@ -107,7 +107,7 @@ async fn get_constraint_names_from_db(
         JOIN pg_index ind ON ind.indexrelid = c.oid
         WHERE schemaname NOT IN ('pg_catalog', 'information_schema')
         AND ind.indisunique
-        ",
+        "#,
     )
     .fetch_all(conn)
     .await

@@ -9,7 +9,11 @@ proc-macro = true
 
 [dependencies]
 quote = "1"
-sqlx = { version = "0.8.6", default-features = false, features = ["runtime-tokio", "postgres"] }
+sqlx = { version = "0.8.6", default-features = false, features = [
+  "runtime-tokio",
+  "postgres",
+  "macros",
+] }
 strsim = "0.11"
 syn = "2"
 tokio = { version = "1.49", default-features = false, features = ["rt"] }
