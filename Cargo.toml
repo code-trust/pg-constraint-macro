@@ -7,19 +7,16 @@ version = "0.1.0"
 [lib]
 proc-macro = true
 
-[features]
-default = []
-validate = ["dep:sqlx", "dep:tokio", "dep:strsim"]
-
 [dependencies]
 quote = "1"
-sqlx = { version = "0.8.6", optional = true, default-features = false, features = [
+sqlx = { version = "0.8.6", default-features = false, features = [
   "runtime-tokio",
   "postgres",
+  "macros",
 ] }
-strsim = { version = "0.11", optional = true }
+strsim = "0.11"
 syn = "2"
-tokio = { version = "1.49", optional = true, default-features = false, features = ["rt"] }
+tokio = { version = "1.49", default-features = false, features = ["rt"] }
 
 [lints]
 workspace = true
