@@ -17,6 +17,3 @@ sqlx = { version = "0.8.6", default-features = false, features = [
 strsim = "0.11"
 syn = "2"
 tokio = { version = "1.50", default-features = false, features = ["rt"] }
-
-[lints]
-workspace = true
