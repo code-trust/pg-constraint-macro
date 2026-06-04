@@ -1,11 +1,66 @@
 [package]
+categories = ["database", "development-tools"]
+description = "Compile-time validation of PostgreSQL constraint and unique index names for sqlx"
 edition = "2024"
+keywords = ["postgresql", "sqlx", "proc-macro", "constraint", "compile-time"]
+license = "MIT"
 name = "pg-constraint-macro"
-publish = false
+repository = "https://github.com/code-trust/pg-constraint-macro"
 version = "0.1.0"
 
 [lib]
 proc-macro = true
+
+[lints.clippy]
+branches_sharing_code = "warn"
+cloned_instead_of_copied = "warn"
+derive_partial_eq_without_eq = "warn"
+duration_suboptimal_units = "warn"
+elidable_lifetime_names = "warn"
+equatable_if_let = "warn"
+explicit_into_iter_loop = "warn"
+explicit_iter_loop = "warn"
+filter_map_next = "warn"
+flat_map_option = "warn"
+from_iter_instead_of_collect = "warn"
+future_not_send = "warn"
+get_unwrap = "warn"
+ignored_unit_patterns = "warn"
+implicit_clone = "warn"
+imprecise_flops = "warn"
+manual_assert = "warn"
+manual_let_else = "warn"
+manual_string_new = "warn"
+map_unwrap_or = "warn"
+match_bool = "warn"
+needless_collect = "warn"
+needless_continue = "warn"
+needless_pass_by_ref_mut = "warn"
+needless_pass_by_value = "warn"
+needless_raw_string_hashes = "warn"
+non_std_lazy_statics = "warn"
+or_fun_call = "warn"
+redundant_clone = "warn"
+redundant_else = "warn"
+redundant_pub_crate = "warn"
+semicolon_if_nothing_returned = "warn"
+significant_drop_tightening = "warn"
+single_match_else = "warn"
+str_to_string = "warn"
+trait_duplication_in_bounds = "warn"
+type_repetition_in_bounds = "warn"
+uninlined_format_args = "warn"
+unnecessary_self_imports = "warn"
+unnecessary_semicolon = "warn"
+unnecessary_struct_initialization = "warn"
+unnecessary_trailing_comma = "warn"
+unneeded_field_pattern = "warn"
+unused_async = "warn"
+unused_self = "warn"
+unused_trait_names = "warn"
+use_self = "warn"
+used_underscore_binding = "warn"
+wildcard_imports = "warn"
 
 [dependencies]
 quote = "1"
@@ -17,3 +72,8 @@ sqlx = { version = "0.8.6", default-features = false, features = [
 strsim = "0.11"
 syn = "2"
 tokio = { version = "1.52", default-features = false, features = ["rt"] }
+
+[dev-dependencies]
+sqlx = { version = "0.8.6", features = ["runtime-tokio", "postgres", "macros", "migrate"] }
+tokio = { version = "1.52", features = ["macros", "rt-multi-thread"] }
+trybuild = { version = "1", features = ["diff"] }

@@ -1,0 +1,8 @@
+[package]
+edition = "2024"
+name = "ui"
+publish = false
+version = "0.0.0"
+
+[dependencies]
+pg-constraint-macro = { path = "../.." }

@@ -1,0 +1,69 @@
+version: "3"
+
+vars:
+  RUSTFMT_CONFIG: group_imports=StdExternalCrate,imports_granularity=Module,imports_layout=Vertical
+
+tasks:
+  default:
+    desc: Run tests
+    cmds:
+      - task: test
+
+  test:
+    desc: Run unit tests (no database required)
+    cmds:
+      - cargo test --lib
+
+  test:e2e:
+    desc: Run PostgreSQL e2e tests
+    env:
+      DATABASE_URL: postgres://postgres:postgres@127.0.0.1:34030/app
+    cmds:
+      - defer: docker compose down --remove-orphans
+      - docker compose up -d --wait
+      - cargo test --test constraints_e2e --test compile_fail
+
+  format:
+    deps:
+      - task: format:cargo
+      - task: format:nix
+      - task: format:taplo
+
+  format:cargo:
+    cmds:
+      - cargo fmt -- --config {{.RUSTFMT_CONFIG}}
+
+  format:taplo:
+    env:
+      RUST_LOG: warn
+    cmds:
+      - taplo format
+
+  format:nix:
+    cmds:
+      - nixfmt flake.nix
+
+  lint:
+    deps:
+      - task: lint:clippy
+      - task: lint:cargo
+      - task: lint:nix
+      - task: lint:taplo
+
+  lint:clippy:
+    cmds:
+      - cargo clippy --workspace --all-targets --all-features -- -Dwarnings
+
+  lint:cargo:
+    cmds:
+      - cargo fmt --check -- --config {{.RUSTFMT_CONFIG}}
+
+  lint:taplo:
+    env:
+      RUST_LOG: warn
+    cmds:
+      - taplo format --check --diff
+
+  lint:nix:
+    cmds:
+      - nixfmt --check flake.nix

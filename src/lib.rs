@@ -95,7 +95,7 @@ async fn get_constraint_names_from_db(
     // Names that can appear in db_err.constraint():
     // 1. pg_constraint.conname - all constraints
     // 2. Unique index names (CREATE UNIQUE INDEX name ...)
-    sqlx::query_scalar!(
+    sqlx::query_scalar(
         r#"
         SELECT conname AS "name!" FROM pg_constraint
         JOIN pg_namespace ON pg_namespace.oid = connamespace
@@ -120,6 +120,11 @@ fn get_similar_constraints(
     constraint_name: &str,
 ) -> Vec<String> {
     let mut names: Vec<_> = constraint_names.iter().cloned().collect();
-    names.sort_by_key(|candidate| strsim::levenshtein(constraint_name, candidate));
+    names.sort_by_cached_key(|candidate| {
+        (
+            strsim::levenshtein(constraint_name, candidate),
+            candidate.clone(),
+        )
+    });
     names.into_iter().take(5).collect()
 }

@@ -1,0 +1,7 @@
+error: pg_constraint!: no constraint or unique index named 'e2e_test_tags_label_id'. Did you mean: e2e_test_tags_label_idx, e2e_test_tags_pkey, e2e_test_tags_label_not_null, e2e_test_items_name_key, e2e_test_items_pkey?
+ --> $DIR/typo_unique_index.rs:4:13
+  |
+4 |     let _ = pg_constraint!("e2e_test_tags_label_id");
+  |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: this error originates in the macro `pg_constraint` (in Nightly builds, run with -Z macro-backtrace for more info)
