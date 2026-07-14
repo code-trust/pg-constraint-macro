@@ -6,7 +6,7 @@ keywords = ["postgresql", "sqlx", "proc-macro", "constraint", "compile-time"]
 license = "MIT"
 name = "pg-constraint-macro"
 repository = "https://github.com/code-trust/pg-constraint-macro"
-version = "0.1.0"
+version = "0.1.1"
 
 [lib]
 proc-macro = true
